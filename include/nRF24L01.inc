@@ -259,7 +259,7 @@ RF24_Init:
             writeRegI       EN_AA, 0x3f                     ; EN_AA_P0
             writeRegI       EN_RXADDR, 0x01                 ; ERX_P0
             writeRegI       SETUP_AW, 0x03                  ; 5 bytes
-            writeRegI       RF_SETUP, 0x01                  ; LNA_Gain | 0 dBm | 1 Mbps
+            writeRegI       RF_SETUP, 0x07                  ; LNA_Gain | 0 dBm | 1 Mbps
             writeRegI       RF_CH, CHANNEL                  ; channel 1 (MiLight 9, 40, 71 ?)
             writePipeAddr   RX_ADDR_P0, Pipe_Address
             writePipeAddr   TX_ADDR, Pipe_Address

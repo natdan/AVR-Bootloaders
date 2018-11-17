@@ -88,6 +88,7 @@
 .equ        DATA_SIZE = 16
 .equ        PACKET_SIZE = DATA_SIZE + 1
 .equ        PAGE_SIZE = 128
+.equ        RETRY_COUNT = 100
 
 .equ        CHANNEL = 1
 
@@ -102,7 +103,7 @@ ReceiveBuffer:  .byte   PACKET_SIZE
 MemoryBuffer:   .byte   PAGE_SIZE
 
 
-;Buffer:          .byte    3
+Buffer:          .byte    20
 
 
 
@@ -121,6 +122,7 @@ MemoryBuffer:   .byte   PAGE_SIZE
 .include    "macros.inc"
 .include    "ExtensionMacros.inc"
 .include    "nRF24L01.inc"
+.include    "USART0.inc"
 
 .macro      resetSendBuf
             ldiw            Y, SendBuffer + 1
@@ -174,6 +176,7 @@ RESET:
 
 Continue_with_bootloader:
             nop
+            call            USART_Init
             call            SPI_Init
             call            RF24_Init
 
@@ -185,10 +188,11 @@ Loop:
             startListening
             poolData        ; TODO add timeout!!!
 
+            rcall            ReceiveData
             stopListening
-            call            ReceiveData
 
             readByteA
+
             cpi             A, 0x75
             brne            _not_signature
             rjmp            Signature
@@ -229,12 +233,31 @@ _not_signature:
 
 ReadId:
             switchToTX
+
+            ldi             D, RETRY_COUNT
+_ReadId_Loop:
             writeFlushTX
             clearInterrupts
 
             ldi             A, PACKET_SIZE
             ldipw           Z, ID_PACKET
             call            RF24_Write_Payload_P
+
+            andi            A, (1<<TX_DS)
+            brne            _ReadId_OK
+
+            prints          Err
+            mov             A, D
+            printA
+            prints          CRLF
+
+            dec             D
+            brne            _ReadId_Loop
+            prints          Failed
+            rjmp            Loop
+
+_ReadId_OK:
+            prints          SentReadId
             rjmp            Loop
 
 Signature:
@@ -392,8 +415,10 @@ _ReadMemory_loop2_end:
             switchToRX
             startListening
             poolData
-            stopListening
+
             rcall       ReceiveData
+            stopListening
+
             resetSendBuf
 
             mov             ZL, addrL
@@ -486,8 +511,9 @@ _WriteMemory_send_continuation:
             switchToRX
             startListening
             poolData
+
+            rcall            ReceiveData
             stopListening
-            call            ReceiveData
 
             mov             YL, tempL
             mov             YH, tempH
@@ -526,6 +552,10 @@ ReceiveData:
             ret
 
 SendData:
+            prints          SendingData
+
+            ldi             D, RETRY_COUNT
+_SendData_Loop:
             ldiw            Z, SendBuffer
             st              Z+, sendLen
             ldiw            Z, SendBuffer
@@ -537,25 +567,58 @@ SendData:
             ldi             A, PACKET_SIZE
             call            RF24_Write_Payload_M
 
-;_SendData_Loop:
-;            ; TODO add timeout!
-;            readReg         STATUS
-;            andi            A, (1<<TX_DS)
-;            breq            _SendData_Loop
+            andi            A, (1<<TX_DS)
+            brne            _SendData_OK
+            prints          Err
+            mov             A, D
+            printA
+            prints          CRLF
 
+            dec             D
+            brne            _SendData_Loop
+
+            prints          Failed
+
+            writeRegI       STATUS, (1<<TX_DS) | (1<<MAX_RT)
+            resetSendBuf
+            ret
+
+_SendData_OK:
+            prints          SentData
+            writeRegI       STATUS, (1<<TX_DS) | (1<<MAX_RT)
             resetSendBuf
 
             ret
 
 SendACK:
+            prints          SendingACK
+
+            ldi             D, RETRY_COUNT
+_SendACK_Loop:
             switchToTX
             writeFlushTX
             clearInterrupts
 
             ldi             A, PACKET_SIZE
             ldipw           Z, ACK_PACKET
-            jmp             RF24_Write_Payload_P
+            call            RF24_Write_Payload_P
 
+            andi            A, (1<<TX_DS)
+            brne            _SendACK_OK
+
+            prints          Err
+            mov             A, D
+            printA
+            prints          CRLF
+
+            dec             D
+            brne            _SendACK_Loop
+            prints          Failed
+            ret
+
+_SendACK_OK:
+            prints          SentAck
+            ret
 
 .include        "flash.inc"
 
@@ -563,3 +626,12 @@ ACK_PACKET:     .db         2, 0x14, 0x10
 ID_PACKET:      .db         9, 0x14, "nRF ISP", 0x10
 
 Pipe_Address:   .db         "BOOTL"
+
+SendingACK:     .db         "SendingACK", 13, 10, 0
+SentACK:        .db         "SentACK", 13, 10, 0
+SendingData:    .db         "SendingData", 13, 10, 0
+SentData:       .db         "SentData", 13, 10, 0
+SentReadId:     .db         "SentReadId", 13, 10, 0
+Err:            .db         "Err:", 0
+Failed:         .db         "Failed", 13, 10, 0
+CRLF:           .db         13, 10, 0

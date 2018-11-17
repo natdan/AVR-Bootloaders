@@ -58,6 +58,7 @@ CHANNEL = 1
 _packetSize = 0
 _spi = None
 
+
 def delay10us():
     time.sleep(0.00001)
 
@@ -140,12 +141,12 @@ def initNRF(spiBus, spiDevice, packetSize, address, channel):
     _clearCE()
 
     powerDown()
-    _writeCommand(_STATUS, 0x40)
     _writeCommand(_EN_AA, 0x3f)       # _EN_AA_P0
     _writeCommand(_EN_RXADDR, 0x01)   # ERX_P0
     _writeCommand(_SETUP_AW, 0x03)    # 5 bytes
+    _writeCommand(_SETUP_RETR, 0x2f)  # 15 retransmits | Wait 750 + 86us
     _writeCommand(_RF_CH, channel)    # channel 1 (MiLight 9, 40, 71 ?)
-    _writeCommand(_RF_SETUP, 0x01)    # LNA_Gain | 0 dBm | 1 Mbps
+    _writeCommand(_RF_SETUP, 0x07)    # LNA_Gain | 0 dBm | 1 Mbps
     setReadPipeAddress(0, address)  # Pipe 0 read address
     setWritePipeAddress(address)    # Write address
 
@@ -156,9 +157,6 @@ def initNRF(spiBus, spiDevice, packetSize, address, channel):
             sys.exit(-1)
 
     _writeCommand(_RX_PW_P0, packetSize)       # 8 bytes
-    _writeCommand(_SETUP_RETR, 0x2f)  # 15 retransmits | Wait 750 + 86us
-    # _writeCommand(_CONFIG, 0x1e)      # PWR_UP | CRC0 | EN_CRC | MASK_MAX_RT | PTX
-    # _writeCommand(_STATUS, 0x70)
     _clearInterrupts()
     writeFlushTX()
     _writeCommand(_CONFIG, 0x1e)            # PWR_UP | CRC0 | EN_CRC | MASK_MAX_RT | PTX
@@ -169,6 +167,7 @@ def powerUp():
     config = _readRegister(_CONFIG)
     config |= 2
     _writeCommand(_CONFIG, config)
+    time.sleep(0.002)
 
 
 def powerDown():
@@ -183,12 +182,13 @@ def powerDown():
 def swithToTX():
     _clearCE()
     _writeCommand(_CONFIG, 0x1e)      # PWR_UP | CRC0 | EN_CRC | MASK_MAX_RT | PTX
-    time.sleep(0.02)
+    time.sleep(0.0002)
 
 
 def swithToRX():
     _clearCE()
     _writeCommand(_CONFIG, 0x1f)      # PWR_UP | CRC0 | EN_CRC | MASK_MAX_RT | PRX
+    time.sleep(0.0002)
     # time.sleep(0.02)
 
 
@@ -239,14 +239,14 @@ def padToSize(buf, size):
 
 def startListening():
     # delay10us()
-    time.sleep(0.00002)
+    # time.sleep(0.00002)
     _writeCommand(_CONFIG, _readRegister(_CONFIG) | 3)
     _writeCommand(_STATUS, 0x70)                         # RX_DR | TX_DS | MAX_RT
     writeFlushRX()
     writeFlushTX()
     _setCE()
     # delay20ms()
-    time.sleep(0.02)
+    time.sleep(0.0002)
 
 
 def stopListening():
@@ -306,7 +306,7 @@ def sendAndReceive(data, timeout):
         swithToRX()
         startListening()
         if poolData(timeout):
-            stopListening()
+#            stopListening()
             return receiveData(_packetSize)
         else:
             return returnError(data)

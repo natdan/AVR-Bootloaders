@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../bin/tavrasm -I ../Include bootloader.asm
+../bin/tavrasm -I ../include bootloader.asm
