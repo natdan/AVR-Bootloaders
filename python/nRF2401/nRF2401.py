@@ -306,8 +306,10 @@ def sendAndReceive(data, timeout):
         swithToRX()
         startListening()
         if poolData(timeout):
-#            stopListening()
-            return receiveData(_packetSize)
+            # stopListening()
+            res = receiveData(_packetSize)
+            stopListening()
+            return res
         else:
             return returnError(data)
 

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-../bin/tavrasm -I ../include bootloader.asm
+../bin/tavrasm -I ../include bootloader-i2c.asm

@@ -746,7 +746,7 @@ def write():
         if verbose > 0:
             print("Flash page size " + str(pageSize))
 
-    if not os.path.exists(os.path.join(sys.path[0], fileName)):
+    if not os.path.exists(fileName):
         print("Error: file does not exist; '" + fileName + "'")
         sys.exit(1)
 
@@ -851,7 +851,7 @@ def verify():
         if verbose > 0:
             print("Flash page size " + str(pageSize))
 
-    if not os.path.exists(os.path.join(sys.path[0], fileName)):
+    if not os.path.exists(fileName):
         print("Error: file does not exist; '" + fileName + "'")
         sys.exit(1)
 

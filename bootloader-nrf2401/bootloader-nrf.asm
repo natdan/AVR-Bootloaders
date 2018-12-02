@@ -54,6 +54,9 @@
 .equ        UART_Baud_Rate = 19200 ; 57600
 
 
+;.def        DEBUG 1
+
+
 .def        A = r16
 .def        B = r17
 .def        C = r18
@@ -115,7 +118,7 @@ Buffer:          .byte    20
 .cseg
 .org        BOOT_LOADER_ADDRESS
             jmp             RESET
-
+            jmp             RESET_NO_SKIP
 
 ;.org        BOOT_LOADER_ADDRESS + INT_VECTORS_SIZE
 
@@ -159,6 +162,13 @@ Buffer:          .byte    20
 .endmacro
 
 
+RESET_NO_SKIP:
+            cli
+            ldi             A, high(RAMEND)    ; Main program start
+            out             SPH, A             ; Set Stack Pointer to top of RAM
+            ldi             A, low(RAMEND)
+            out             SPL, A
+            rjmp            Continue_with_bootloader
 RESET:
             cli
             ldi             A, high(RAMEND)    ; Main program start
@@ -246,18 +256,27 @@ _ReadId_Loop:
             andi            A, (1<<TX_DS)
             brne            _ReadId_OK
 
+#ifdef DEBUG
             prints          Err
+#endif
             mov             A, D
+
+#ifdef DEBUG
             printA
             prints          CRLF
-
+#endif
             dec             D
             brne            _ReadId_Loop
+
+#ifdef DEBUG
             prints          Failed
+#endif
             rjmp            Loop
 
 _ReadId_OK:
+#ifdef DEBUG
             prints          SentReadId
+#endif
             rjmp            Loop
 
 Signature:
@@ -552,8 +571,9 @@ ReceiveData:
             ret
 
 SendData:
+#ifdef DEBUG
             prints          SendingData
-
+#endif
             ldi             D, RETRY_COUNT
 _SendData_Loop:
             ldiw            Z, SendBuffer
@@ -569,30 +589,38 @@ _SendData_Loop:
 
             andi            A, (1<<TX_DS)
             brne            _SendData_OK
+
+#ifdef DEBUG
             prints          Err
+#endif
             mov             A, D
+#ifdef DEBUG
             printA
             prints          CRLF
-
+#endif
             dec             D
             brne            _SendData_Loop
 
+#ifdef DEBUG
             prints          Failed
-
+#endif
             writeRegI       STATUS, (1<<TX_DS) | (1<<MAX_RT)
             resetSendBuf
             ret
 
 _SendData_OK:
+#ifdef DEBUG
             prints          SentData
+#endif
             writeRegI       STATUS, (1<<TX_DS) | (1<<MAX_RT)
             resetSendBuf
 
             ret
 
 SendACK:
+#ifdef DEBUG
             prints          SendingACK
-
+#endif
             ldi             D, RETRY_COUNT
 _SendACK_Loop:
             switchToTX
@@ -606,18 +634,25 @@ _SendACK_Loop:
             andi            A, (1<<TX_DS)
             brne            _SendACK_OK
 
+#ifdef DEBUG
             prints          Err
+#endif
             mov             A, D
+#ifdef DEBUG
             printA
             prints          CRLF
-
+#endif
             dec             D
             brne            _SendACK_Loop
+#ifdef DEBUG
             prints          Failed
+#endif
             ret
 
 _SendACK_OK:
+#ifdef DEBUG
             prints          SentAck
+#endif
             ret
 
 .include        "flash.inc"
