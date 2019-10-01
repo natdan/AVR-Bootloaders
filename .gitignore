@@ -105,3 +105,6 @@ venv.bak/
 
 **/.DS_Store
 **/.idea
+
+bootloader-i2c/*.hex
+
